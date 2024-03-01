@@ -3,6 +3,8 @@ import socket
 import struct
 import threading
 from bubenis_network import *
+import io
+import sys
 
 
 def init_command(name):
@@ -19,25 +21,54 @@ def done_command(name):
     }
 
 
-name = "2"
-sock = socket.socket()
-sock.connect(('vps.codingprojects.ru', 9070))
-
-cmd = init_command(name)
-send_json(sock, cmd)
-
-print(cmd)
-
-while True:
-    data = receive_string(sock)
-
+# Функция выполнения задачи
+def execute_task(task):
+    # Redirect stdout to a StringIO object
+    output = io.StringIO()
+    sys.stdout = output
+    print(task)
     try:
-        exec(data)
+        # Execute the script code
+        exec(task)
     except Exception as e:
-        pass
+        # Print the exception if an error occurs
+        print(e)
 
-    try:
-        send_json(sock, done_command(name))
-    except:
-        print("exiting")
-        break
+    # Restore stdout and get the captured output
+    sys.stdout = sys.__stdout__
+    result = output.getvalue()
+    output.close()
+
+    return result
+
+
+name = "2"
+while True:
+    while True:
+        try:
+            print("try to connect")
+            sock = socket.socket()
+            sock.connect(('127.0.0.1', 9070))
+            break
+        except ConnectionRefusedError:
+            print("Connection error")
+
+    print("Connect!")
+    cmd = init_command(name)
+    send_json(sock, cmd)
+    print(f"Login as {name}")
+    # print(cmd)
+
+    while True:
+        data = receive_string(sock)
+        print(f"get text {data}")
+
+        result = (
+            execute_task(data))
+
+        try:
+            send_json(sock, done_command(name))
+        except:
+            print("exiting")
+            sock.close()
+            break
